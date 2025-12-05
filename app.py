@@ -4,9 +4,6 @@ import numpy as np
 import pandas as pd
 import joblib
 from PIL import Image
-from stable_baselines3 import PPO
-import numpy as np
-
 
 import streamlit as st
 from tensorflow.keras.models import load_model
@@ -23,6 +20,14 @@ try:
     import feedparser
 except Exception:
     feedparser = None
+
+# Optional: Stable Baselines 3 (for RL agent)
+try:
+    from stable_baselines3 import PPO
+    SB3_AVAILABLE = True
+except Exception:
+    PPO = None
+    SB3_AVAILABLE = False
 
 # ==============================
 # Page config
@@ -58,35 +63,30 @@ def load_all():
 
 model, tokenizer, max_len = load_all()
 
-# ============================================
-# Load RL Agent (PPO)
-# ============================================
-try:
-    RL_AGENT_PATH = "rl_agent/rl_fake_news_agent.zip"
-    rl_agent = PPO.load(RL_AGENT_PATH)
-    rl_enabled = True
-except Exception as e:
-    rl_agent = None
-    rl_enabled = False
-    st.warning("⚠️ RL agent could not be loaded. Using standard CNN model only.")
 
-
-# ==============================
-# Helper functions
-# ==============================
 def preprocess_text(text: str):
+    """Basic tokenizer → padded sequence (used by explainer)."""
     seq = tokenizer.texts_to_sequences([text])
     return pad_sequences(seq, maxlen=max_len, padding="post")
 
 
-def predict_news(text: str):
-    """Return label, confidence (for predicted class), and raw prob(fake)."""
-    padded = preprocess_text(text)
-    prob_fake = float(model.predict(padded, verbose=0)[0][0])
-    is_fake = prob_fake > 0.5
-    label = "FAKE News" if is_fake else "REAL News"
-    confidence = prob_fake if is_fake else 1 - prob_fake
-    return label, confidence, prob_fake, is_fake
+# ============================================
+# Load RL Agent (PPO)
+# ============================================
+rl_agent = None
+rl_enabled = False
+
+if SB3_AVAILABLE:
+    try:
+        RL_AGENT_PATH = os.path.join(BASE_DIR, "rl_agent", "rl_fake_news_agent.zip")
+        rl_agent = PPO.load(RL_AGENT_PATH)
+        rl_enabled = True
+    except Exception:
+        rl_agent = None
+        rl_enabled = False
+        st.warning("⚠️ RL agent could not be loaded. Using standard CNN model only.")
+else:
+    st.info("ℹ️ Stable-Baselines3 not available. Running in CNN-only mode.")
 
 
 # ============================================================
@@ -107,15 +107,15 @@ def rl_refine_text(text, tokenizer, rl_agent, steps=5, max_len=200):
     seq = np.array(seq, dtype=np.int32)
     weights = np.ones(max_len, dtype=np.float32)
 
-    # Build observation vector
-    def build_obs(token_ids, weights):
+    # Build observation vector (must match env.py logic)
+    def build_obs(token_ids, weights_vec):
         ids = token_ids.astype(np.float32)
         max_v = np.max(ids)
         if max_v > 0:
             ids_scaled = (ids / max_v) * 2.0
         else:
             ids_scaled = ids
-        return np.concatenate([ids_scaled, weights]).astype(np.float32)
+        return np.concatenate([ids_scaled, weights_vec]).astype(np.float32)
 
     obs = build_obs(seq, weights)
 
@@ -143,6 +143,37 @@ def rl_refine_text(text, tokenizer, rl_agent, steps=5, max_len=200):
         obs = build_obs(seq, weights)
 
     return seq, weights
+
+
+# ==============================
+# Unified prediction: CNN (+ RL if enabled)
+# ==============================
+def predict_with_rl(text: str):
+    """
+    Main prediction function:
+    - If RL agent is available → refine tokens with RL
+    - Else → normal CNN pipeline
+    Returns: label, confidence_for_label, prob_fake, is_fake
+    """
+    if rl_enabled and rl_agent is not None:
+        seq, weights = rl_refine_text(text, tokenizer, rl_agent, steps=5, max_len=max_len)
+        seq_weighted = seq * (weights > 0).astype(int)
+    else:
+        seq = tokenizer.texts_to_sequences([text])[0]
+        if len(seq) > max_len:
+            seq = seq[:max_len]
+        else:
+            seq += [0] * (max_len - len(seq))
+        seq_weighted = np.array(seq, dtype=np.int32)
+
+    padded = pad_sequences([seq_weighted], maxlen=max_len, padding="post")
+    prob_fake = float(model.predict(padded, verbose=0)[0][0])
+
+    is_fake = prob_fake > 0.5
+    label = "FAKE News" if is_fake else "REAL News"
+    confidence = prob_fake if is_fake else (1 - prob_fake)
+
+    return label, confidence, prob_fake, is_fake
 
 
 def extract_article(url: str):
@@ -194,6 +225,7 @@ def get_trending_items():
             "link": "https://www.politifact.com/"
         }
     ]
+
 
 # ==============================
 # CUSTOM EXPLANATION ENGINE
@@ -424,6 +456,11 @@ input_type = st.sidebar.radio(
     ["📝 Enter Text Manually", "🌐 Paste URL"]
 )
 
+if rl_enabled:
+    st.sidebar.success("🤖 RL refinement: **ON**")
+else:
+    st.sidebar.info("📡 RL refinement: **OFF** (CNN-only)")
+
 st.sidebar.markdown("### 📰 Trending fact-checks")
 for item in get_trending_items():
     st.sidebar.markdown(f"- [{item['title']}]({item['link']})")
@@ -476,7 +513,9 @@ with st.container():
             if not user_text.strip():
                 st.warning("Please enter some text first.")
             else:
-                label, conf, prob_fake, is_fake = predict_news(user_text)
+                if rl_enabled:
+                    st.info("🤖 RL refinement enabled: optimizing text representation before prediction...")
+                label, conf, prob_fake, is_fake = predict_with_rl(user_text)
                 emoji = "🔴" if is_fake else "🟢"
 
                 st.markdown("<div class='result-box'>", unsafe_allow_html=True)
@@ -531,7 +570,9 @@ with st.container():
                         with st.expander("📄 Show full article text"):
                             st.write(article_text)
 
-                        label, conf, prob_fake, is_fake = predict_news(article_text)
+                        if rl_enabled:
+                            st.info("🤖 RL refinement enabled: optimizing text representation before prediction...")
+                        label, conf, prob_fake, is_fake = predict_with_rl(article_text)
                         emoji = "🔴" if is_fake else "🟢"
 
                         st.markdown("<div class='result-box'>", unsafe_allow_html=True)
