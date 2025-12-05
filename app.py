@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 import joblib
 from PIL import Image
+from stable_baselines3 import PPO
+import numpy as np
+
 
 import streamlit as st
 from tensorflow.keras.models import load_model
@@ -55,6 +58,19 @@ def load_all():
 
 model, tokenizer, max_len = load_all()
 
+# ============================================
+# Load RL Agent (PPO)
+# ============================================
+try:
+    RL_AGENT_PATH = "rl_agent/rl_fake_news_agent.zip"
+    rl_agent = PPO.load(RL_AGENT_PATH)
+    rl_enabled = True
+except Exception as e:
+    rl_agent = None
+    rl_enabled = False
+    st.warning("⚠️ RL agent could not be loaded. Using standard CNN model only.")
+
+
 # ==============================
 # Helper functions
 # ==============================
@@ -71,6 +87,62 @@ def predict_news(text: str):
     label = "FAKE News" if is_fake else "REAL News"
     confidence = prob_fake if is_fake else 1 - prob_fake
     return label, confidence, prob_fake, is_fake
+
+
+# ============================================================
+# RL Text Refinement (lightweight inference version)
+# ============================================================
+def rl_refine_text(text, tokenizer, rl_agent, steps=5, max_len=200):
+    """
+    Runs the trained RL agent to refine the input text before CNN prediction.
+    No gym environment needed – this is a lightweight inference loop.
+    """
+    # Convert text to token IDs
+    seq = tokenizer.texts_to_sequences([text])[0]
+    if len(seq) > max_len:
+        seq = seq[:max_len]
+    else:
+        seq += [0] * (max_len - len(seq))
+
+    seq = np.array(seq, dtype=np.int32)
+    weights = np.ones(max_len, dtype=np.float32)
+
+    # Build observation vector
+    def build_obs(token_ids, weights):
+        ids = token_ids.astype(np.float32)
+        max_v = np.max(ids)
+        if max_v > 0:
+            ids_scaled = (ids / max_v) * 2.0
+        else:
+            ids_scaled = ids
+        return np.concatenate([ids_scaled, weights]).astype(np.float32)
+
+    obs = build_obs(seq, weights)
+
+    num_ops = 3
+    noop_action = max_len * num_ops
+
+    # Execute RL actions
+    for _ in range(steps):
+        action, _ = rl_agent.predict(obs, deterministic=True)
+
+        if action == noop_action:
+            break  # RL chooses to stop
+
+        pos = action // num_ops
+        op = action % num_ops
+
+        if 0 <= pos < max_len:
+            if op == 0:
+                weights[pos] = 0.0
+            elif op == 1:
+                weights[pos] = min(weights[pos] + 0.5, 2.0)
+            elif op == 2:
+                weights[pos] = max(weights[pos] - 0.5, 0.0)
+
+        obs = build_obs(seq, weights)
+
+    return seq, weights
 
 
 def extract_article(url: str):
