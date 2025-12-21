@@ -59,10 +59,12 @@ https://fake-news-detection-app-adptswkkruuf4keteyadn6.streamlit.app
 - LIME (Explainability)
 
 This version demonstrates the **complete deep learning pipeline** and is intended for **academic evaluation**.
-
+---
 ### ▶️ How to Run Locally
 ```bash
 streamlit run app.py
+```
+---
 
 ##📦 Requirements
 Python 3.10
@@ -70,12 +72,12 @@ TensorFlow 2.10
 Streamlit
 scikit-learn
 LIME
-
+---
 ##📌 Notes
 The cloud version is a simplified deployment due to platform limitations.
 The local version contains the full CNN architecture and explainability features.
 Predictions are designed for news-style text; casual text may be classified as fake.
-
+---
 ##👤 Author
 Bhavya Pandya
 Graduate Student – Data Analytics
