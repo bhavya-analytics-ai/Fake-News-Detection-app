@@ -66,18 +66,26 @@ streamlit run app.py
 ```
 ---
 
-##📦 Requirements
+## 📦 Requirements
+---
+```
 Python 3.10
 TensorFlow 2.10
 Streamlit
 scikit-learn
 LIME
+```
 ---
-##📌 Notes
+
+## 📌 Notes
+---
 The cloud version is a simplified deployment due to platform limitations.
 The local version contains the full CNN architecture and explainability features.
 Predictions are designed for news-style text; casual text may be classified as fake.
+
 ---
-##👤 Author
-Bhavya Pandya
-Graduate Student – Data Analytics
+
+## 👤 Author
+---
+- Bhavya Pandya
+- Graduate Student – Data Analytics
