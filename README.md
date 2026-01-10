@@ -86,6 +86,6 @@ Predictions are designed for news-style text; casual text may be classified as f
 ---
 
 ## 👤 Author
----
-- Bhavya Pandya
-- Graduate Student – Data Analytics
+**Bhavya Pandya**  
+LinkedIn: https://www.linkedin.com/in/bhavya-91p/
+
