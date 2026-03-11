@@ -1,73 +1,46 @@
-# 📰 Fake News Detection App
+# Fake News Detection
+### NLP pipeline with two deployments - lightweight cloud demo and full local CNN with explainability.
 
-This project is a **Fake News Detection system** built using Natural Language Processing and Machine Learning.  
-It contains **two implementations** in a single repository:
-
-- A **cloud-based lightweight demo** (Logistic Regression)
-- A **local full model version** (CNN + Logistic Regression + LIME)
-
----
-
-## 📁 Repository Structure
-```
-Fake-News-Detection-app/
-│
-├── README.md
-│
-├── local_app/ # Full local version (for evaluation)
-│ ├── app.py # Streamlit app (CNN + LR + LIME)
-│ ├── models/
-│ │ ├── advanced_cnn_model.h5
-│ │ ├── log_reg.pkl
-│ │ ├── tfidf_vectorizer.pkl
-│ │ └── tokenizer.pkl
-│ └── notebook/ # Training / experimentation notebooks
-│
-└── cloud_app/ # Cloud demo version
-├── app.py # Streamlit app (Logistic Regression only)
-├── log_reg.pkl
-├── tfidf_vectorizer.pkl
-└── requirements.txt
-```
+![Stack](https://img.shields.io/badge/Stack-TensorFlow%20%7C%20Scikit--learn%20%7C%20Streamlit-3776AB?style=flat&logo=python&logoColor=white)
+![Live](https://img.shields.io/badge/Live-Cloud%20Demo-brightgreen?style=flat)
+![Explainability](https://img.shields.io/badge/Explainability-LIME-orange?style=flat)
 
 ---
 
-## ☁️ Cloud Version (Public Demo)
+## Live Demo
 
-🔗 **Live App:**  
-https://fake-news-detection-app-adptswkkruuf4keteyadn6.streamlit.app
-
-**Model Used**
-- Logistic Regression + TF-IDF
-
-**Why this version**
-- Cloud platforms do not reliably support TensorFlow-based CNN models
-- This version is lightweight, fast, and stable for public access
-
-**Use Case Remember**
-- Class demo
-- Sharing link with others
-- Quick testing
+[Launch Cloud App →](https://fake-news-detection-app-adptswkkruuf4keteyadn6.streamlit.app)
 
 ---
 
-## 🖥️ Local Version (Full Model)
+## Two Versions, One Repo
 
-**Models Used**
-- CNN (Convolutional Neural Network)
-- Logistic Regression
-- LIME (Explainability)
+This repo ships two implementations with a deliberate reason for each.
 
-This version demonstrates the **complete deep learning pipeline** and is intended for **academic evaluation**.
+| | Cloud Version | Local Version |
+|-|--------------|---------------|
+| Models | Logistic Regression + TF-IDF | CNN + Logistic Regression + LIME |
+| Purpose | Public demo, fast and stable | Full deep learning pipeline + explainability |
+| Deployment | Streamlit Cloud | Run locally |
+| Use case | Sharing, quick testing | Academic evaluation |
+
+The cloud version is lightweight by design - TensorFlow CNN models don't run reliably on cloud platforms. The local version is where the real pipeline lives.
+
 ---
-### ▶️ How to Run Locally
+
+## Local Version - Full Pipeline
+
+Three components working together:
+
+- **CNN** - deep learning classifier trained on news-style text
+- **Logistic Regression** - baseline comparison model
+- **LIME** - explainability layer showing which words drove the prediction
+
 ```bash
 streamlit run app.py
 ```
----
 
-## 📦 Requirements
----
+**Requirements:**
 ```
 Python 3.10
 TensorFlow 2.10
@@ -75,17 +48,34 @@ Streamlit
 scikit-learn
 LIME
 ```
----
-
-## 📌 Notes
----
-The cloud version is a simplified deployment due to platform limitations.
-The local version contains the full CNN architecture and explainability features.
-Predictions are designed for news-style text; casual text may be classified as fake.
 
 ---
 
-## 👤 Author
-**Bhavya Pandya**  
-LinkedIn: https://www.linkedin.com/in/bhavya-91p/
+## Repo Structure
 
+```
+Fake-News-Detection-app/
+├── local_app/
+│   ├── app.py                    # Streamlit app (CNN + LR + LIME)
+│   ├── models/
+│   │   ├── advanced_cnn_model.h5
+│   │   ├── log_reg.pkl
+│   │   ├── tfidf_vectorizer.pkl
+│   │   └── tokenizer.pkl
+│   └── notebook/                 # Training and experimentation
+└── cloud_app/
+    ├── app.py                    # Streamlit app (Logistic Regression only)
+    ├── log_reg.pkl
+    ├── tfidf_vectorizer.pkl
+    └── requirements.txt
+```
+
+---
+
+## Note on Input
+
+Models are trained on news-style text. Casual or conversational input may return unexpected results - that's a data distribution issue, not a model failure.
+
+---
+
+**Bhavya Pandya** · [LinkedIn](https://www.linkedin.com/in/bhavya-91p/) · M.S. Data Analytics, LIU Brooklyn
